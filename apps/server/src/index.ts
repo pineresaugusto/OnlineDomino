@@ -67,6 +67,18 @@ io.on('connection', (socket) => {
   socket.on('requestRematch', () => {
     roomManager.handleRequestRematch(socket);
   });
+
+  socket.on('sendEmote', (emoteId) => {
+    const code = roomManager.getRoomCode(socket.id);
+    const playerId = roomManager.getPlayerId(socket.id);
+    if (code && playerId) io.to(code).emit('emote', { playerId, emoteId });
+  });
+
+  socket.on('sendChat', (message) => {
+    const code = roomManager.getRoomCode(socket.id);
+    const playerId = roomManager.getPlayerId(socket.id);
+    if (code && playerId) io.to(code).emit('chat', { playerId, message });
+  });
 });
 
 const PORT = process.env.PORT || 4000;

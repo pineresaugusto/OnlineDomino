@@ -17,6 +17,7 @@ export interface ClientToServerEvents {
 
 // Events from Server to Client
 export interface ServerToClientEvents {
+  identity: (payload: { playerId: string; code: string }) => void; // le dice al cliente quién es y en qué sala
   roomUpdate: (room: Omit<Room, 'game'>) => void; // Send room without the full GameState
   gameUpdate: (view: PlayerView) => void;
   yourTurn: () => void;
