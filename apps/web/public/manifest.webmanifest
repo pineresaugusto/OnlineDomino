@@ -1,0 +1,11 @@
+{
+  "name": "Dominó Online",
+  "short_name": "Dominó",
+  "description": "Juega dominó con amigos, rápido y fácil.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a4d2a",
+  "theme_color": "#0f6b3a",
+  "icons": []
+}

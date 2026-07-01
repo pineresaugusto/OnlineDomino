@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* Tokens del design system (dominó): tapete verde, fichas marfil. */
+@theme {
+  --color-fieltro: #0f6b3a;
+  --color-fieltro-dark: #0a4d2a;
+  --color-marfil: #f5f0e1;
+  --color-punto: #1a1a1a;
+  --color-madera: #7a4a1e;
+}
+
+html,
+body {
+  background-color: var(--color-fieltro-dark);
+  color: var(--color-marfil);
+  -webkit-font-smoothing: antialiased;
+}
