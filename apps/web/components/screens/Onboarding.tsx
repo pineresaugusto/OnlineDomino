@@ -18,7 +18,9 @@ export function Onboarding() {
     <div className="screen" style={{ justifyContent: 'center', gap: 16, textAlign: 'center' }}>
       <div className="spacer" />
       <Logo />
-      <div className="brand">Domin<span className="accent">ó</span></div>
+      <div className="brand" style={{ fontSize: 36, lineHeight: 1.05 }}>
+        La Puerca<br />Domin<span className="accent">ó</span>
+      </div>
       <p className="tag">Juega con tus amigos en segundos. Sin registro.</p>
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 10 }}>
         <input

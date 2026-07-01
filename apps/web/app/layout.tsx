@@ -6,10 +6,10 @@ const serif = Fraunces({ subsets: ['latin'], weight: ['500', '600', '700'], vari
 const sans = Figtree({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'Dominó Online',
+  title: 'La Puerca Dominó',
   description: 'Juega dominó con amigos, rápido y fácil.',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, title: 'Dominó', statusBarStyle: 'black-translucent' },
+  appleWebApp: { capable: true, title: 'La Puerca', statusBarStyle: 'black-translucent' },
 };
 
 export const viewport: Viewport = {
