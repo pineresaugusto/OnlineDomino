@@ -1,0 +1,14 @@
+{
+  "name": "gtools",
+  "private": true,
+  "scripts": {
+    "simulate": "ts-node simulateGame.ts"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  }
+}

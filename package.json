@@ -2,17 +2,16 @@
   "name": "onlinedomino",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
   "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
-    "dev:web": "pnpm --filter @domino/web dev",
-    "dev:server": "pnpm --filter @domino/server dev",
+    "dev": "pnpm --filter @domino/shared build && pnpm -r --parallel dev",
+    "dev:web": "pnpm --filter @domino/shared build && pnpm --filter @domino/web dev",
+    "dev:server": "pnpm --filter @domino/shared build && pnpm --filter @domino/server dev",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
     "lint": "pnpm -r lint"
   },
   "devDependencies": {

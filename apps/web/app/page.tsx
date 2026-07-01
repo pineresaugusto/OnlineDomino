@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import { createDoubleSixSet, type ClientToServerEvents, type ServerToClientEvents } from '@domino/shared';
+import { createBoneyard, type ClientToServerEvents, type ServerToClientEvents } from '@domino/shared';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? 'http://localhost:4000';
 
@@ -10,7 +10,7 @@ type Estado = 'conectando' | 'conectado' | 'sin conexión';
 
 export default function Home() {
   const [estado, setEstado] = useState<Estado>('conectando');
-  const totalFichas = createDoubleSixSet().length;
+  const totalFichas = createBoneyard().length;
 
   useEffect(() => {
     const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(SOCKET_URL, {

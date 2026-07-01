@@ -1,45 +1,75 @@
-// ── Servidor autoritativo (esqueleto Fase 0) ──
-// La lógica real de salas/juego llega en las fases B2–B4.
-import { createServer } from 'node:http';
-import { Server, type Socket } from 'socket.io';
-import type { ClientToServerEvents, ServerToClientEvents } from '@domino/shared';
+import express from 'express';
+import http from 'http';
+import { Server, Socket } from 'socket.io';
+import { ClientToServerEvents, ServerToClientEvents } from '@domino/shared';
+import { RoomManager } from './RoomManager';
 
-const PORT = Number(process.env.PORT ?? 4000);
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? 'http://localhost:3000';
-
-// Healthcheck HTTP simple (útil para el deploy en Railway/Render).
-const httpServer = createServer((_req, res) => {
-  res.writeHead(200, { 'content-type': 'application/json' });
-  res.end(JSON.stringify({ ok: true, service: 'domino-server' }));
+const app = express();
+const server = http.createServer(app);
+const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
+  cors: {
+    origin: '*', // For v1 we can restrict this later
+    methods: ['GET', 'POST']
+  }
 });
 
-const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
-  cors: { origin: CLIENT_ORIGIN },
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
 });
 
-type DominoSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
+const roomManager = new RoomManager(io);
 
-io.on('connection', (socket: DominoSocket) => {
-  console.log('→ cliente conectado:', socket.id);
-
-  // TODO Fase B2: crear sala real con código único y RoomManager.
-  socket.on('createRoom', (payload, cb) => {
-    console.log('createRoom (stub):', payload);
-    cb({ code: 'DEMO', playerId: socket.id });
+io.on('connection', (socket) => {
+  console.log(`Socket connected: ${socket.id}`);
+  
+  // Basic connection event bindings would go here and inside RoomManager
+  // Since we rely on player IDs to be sent, we will assume joining a room provides it.
+  
+  socket.on('createRoom', (payload) => {
+    roomManager.handleCreateRoom(socket, payload);
   });
 
-  // TODO Fase B2: unir a sala existente por código.
-  socket.on('joinRoom', (payload, cb) => {
-    console.log('joinRoom (stub):', payload);
-    cb({ ok: false, error: 'No implementado en Fase 0' });
+  socket.on('joinRoom', (payload) => {
+    roomManager.handleJoinRoom(socket, payload);
   });
 
   socket.on('disconnect', () => {
-    console.log('← cliente salió:', socket.id);
+    roomManager.handleDisconnect(socket);
+  });
+
+  socket.on('startGame', () => {
+    const code = roomManager.getRoomCode(socket.id);
+    if (code) roomManager.startGame(code);
+  });
+
+  socket.on('addBot', () => {
+    roomManager.handleAddBot(socket);
+  });
+
+  socket.on('playTile', (payload) => {
+    const code = roomManager.getRoomCode(socket.id);
+    const playerId = roomManager.getPlayerId(socket.id);
+    if (code && playerId) {
+      const engine = roomManager.getEngine(code);
+      if (engine) engine.handleMove(playerId, payload);
+    }
+  });
+
+  socket.on('pass', () => {
+    const code = roomManager.getRoomCode(socket.id);
+    const playerId = roomManager.getPlayerId(socket.id);
+    if (code && playerId) {
+      const engine = roomManager.getEngine(code);
+      if (engine) engine.handlePass(playerId);
+    }
+  });
+
+  socket.on('requestRematch', () => {
+    roomManager.handleRequestRematch(socket);
   });
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`🁡 Servidor dominó en http://localhost:${PORT}`);
-  console.log(`   CORS permitido para: ${CLIENT_ORIGIN}`);
+const PORT = process.env.PORT || 4000;
+server.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
 });
