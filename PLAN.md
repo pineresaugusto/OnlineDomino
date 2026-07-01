@@ -12,7 +12,7 @@
 |------|----------|
 | **Identidad** | Invitado con apodo. Sin registro. Se guarda en `localStorage`. Cero fricción. |
 | **Conexión a sala privada** | Link + código corto de sala (ej. `ABCD`). Se comparte por WhatsApp; al abrir el link entras directo. |
-| **Matchmaking** | Cola pública simple (botón "Buscar partida"), sin ELO en v1. |
+| **Matchmaking** | **Backlog (post-v1).** En v1 **solo salas privadas** por link/código, **bajo demanda**. App funcional para **uso interno** desde el inicio. |
 | **Reglamentos** | 3 en v1: **Cubano/latino 2v2**, **Bloqueo (Block)**, **Robar (Draw)**. (Sin Mexican Train/All Fives). |
 | **4 modos de partida** | Son **configuraciones de jugadores**, no reglamentos (ver §2). |
 | **Stack** | Next.js (React) en Vercel + servidor Node con **Socket.IO** en host con websockets. TypeScript en todo. |
@@ -31,12 +31,15 @@
 
 ## 2. Modos de partida (los "4 estilos")
 
-Los 4 modos describen **cómo se llenan los asientos**. El reglamento (Cubano / Bloqueo / Robar) se elige por separado al crear la sala.
+Los modos describen **cómo se llenan los asientos**. El reglamento (Cubano / Bloqueo / Robar) se elige por separado al crear la sala. **En v1 todos los asientos se llenan por invitación privada (link/código) o con bots** — no hay emparejamiento con desconocidos.
 
-1. **2v2 — Invito pareja + busco rivales**: creo sala, invito a mi compañero por link, completo 2 rivales (invitados o cola).
-2. **2v2 — Entro solo y me emparejan**: me uno a la cola; el sistema me asigna pareja y 2 rivales.
-3. **1v1**: duelo directo (ideal con reglamento Robar).
-4. **Todos contra todos (3–4 jug.)**: individual, sin parejas (ideal con Bloqueo/Robar).
+**Modos en v1 (salas privadas):**
+1. **2v2 — Invito pareja + invito rivales**: creo sala, comparto el link, se unen mi compañero y 2 rivales (o los cubro con bots).
+2. **1v1**: duelo directo (ideal con reglamento Robar).
+3. **Todos contra todos (3–4 jug.)**: individual, sin parejas (ideal con Bloqueo/Robar).
+
+**Backlog (post-v1):**
+- **2v2 — Entro solo y me emparejan**: requiere la cola pública (matchmaking). Ver §Backlog.
 
 > En v1 el **Cubano** aplica a 2v2; **Bloqueo** y **Robar** a 1v1 / todos-contra-todos. Combos no estándar se ocultan en la UI.
 
@@ -102,8 +105,9 @@ Este paquete se define **primero y en conjunto** (Fase 0). Una vez fijado, Gosto
 
 **Tipos:** `Tile`, `PlacedTile`, `Seat`, `Room`, `GameState`, `Ruleset`, `Mode`, vistas filtradas por jugador (`PlayerView`).
 
-**Eventos cliente → servidor:**
-`createRoom`, `joinRoom`, `joinQueue`, `leaveQueue`, `startGame`, `playTile`, `pass`, `drawTile`, `sendEmote`, `sendChat`, `requestRematch`, `leaveRoom`.
+**Eventos cliente → servidor (v1):**
+`createRoom`, `joinRoom`, `addBot`, `startGame`, `playTile`, `pass`, `drawTile`, `sendEmote`, `sendChat`, `requestRematch`, `leaveRoom`.
+> Reservados para backlog (matchmaking): `joinQueue`, `leaveQueue` — se dejan definidos en tipos pero **no se implementan** en v1.
 
 **Eventos servidor → cliente:**
 `roomUpdate` (estado de la sala/asientos), `gameUpdate` (PlayerView filtrada), `yourTurn`, `turnTimer`, `handResult`, `matchResult`, `emote`, `chat`, `playerConnection` (online/reconnecting/bot), `error`.
@@ -170,7 +174,7 @@ Reutilizable: práctica vs IA, relleno de asientos, cobertura de AFK/desconexió
 
 **A1 · Design system + shell**
 - Theme (paleta, tipografía, tokens), layout mobile-first, navegación Next.js.
-- Pantallas: apodo/inicio, menú (crear/buscar/vs IA), lobby de sala, pantalla fin de partida.
+- Pantallas: apodo/inicio, menú (crear sala / unir por código / vs IA), lobby de sala, pantalla fin de partida.
 
 **A2 · Componentes de mesa**
 - `Tile`, `Board` (extremos abiertos), `Hand` (abanico), marcador, indicadores de turno/timer. Datos desde fixtures.
@@ -195,8 +199,8 @@ Reutilizable: práctica vs IA, relleno de asientos, cobertura de AFK/desconexió
 **B2 · Servidor autoritativo + salas**
 - Socket.IO, `RoomManager` (crear/unir por código, asientos), estado en RAM, emisión **filtrada por jugador**. Jugar una mano Cubano 2v2 completa entre 4 clientes.
 
-**B3 · Modos + matchmaking**
-- Los 4 modos, cola pública, selección reglamento/meta, validación de combos permitidos.
+**B3 · Modos privados + configuración**
+- Modos privados (2v2 invitando, 1v1, todos-contra-todos), `addBot` para asientos vacíos, selección reglamento/meta, validación de combos permitidos. (Cola pública → §Backlog.)
 
 **B4 · Robustez**
 - Timers de turno, detección AFK (2–3 turnos), reconexión con timeout, **bot** (relleno + práctica vs IA), revancha.
@@ -225,7 +229,20 @@ Reutilizable: práctica vs IA, relleno de asientos, cobertura de AFK/desconexió
 
 ---
 
-## 12. Riesgos / decisiones menores pendientes
+## 12. Backlog (post-v1)
+
+Funciones fuera del alcance de v1 (que debe ser funcional para **uso interno con partidas privadas bajo demanda**). Se retoman cuando el core esté sólido:
+
+- **Matchmaking / cola pública**: botón "Buscar partida", emparejamiento con desconocidos, y el modo **2v2 entro-solo-y-me-emparejan**. Eventos `joinQueue`/`leaveQueue` ya reservados en el contrato.
+- Ranking/ELO, stats persistentes e historial (requieren base de datos).
+- Espectadores.
+- Reglamentos extra (Mexican Train, All Fives).
+
+> Diseñar v1 sin cerrar puertas: el contrato deja los huecos (`joinQueue`) para que agregar matchmaking después no obligue a rehacer las salas.
+
+---
+
+## 13. Riesgos / decisiones menores pendientes
 
 - **Escalado**: estado en RAM = 1 instancia. Si crece, migrar salas a Redis (fuera de v1).
 - **Moderación de chat**: filtro básico de groserías + silenciar en v1 (confirmar alcance).
