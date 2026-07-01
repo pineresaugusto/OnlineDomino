@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm --filter @domino/shared build && pnpm --filter @domino/web build",
+  "outputDirectory": "apps/web/out",
+  "installCommand": "pnpm install"
+}
