@@ -1,0 +1,26 @@
+# deps y artefactos (se reconstruyen dentro de la imagen)
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+out
+**/out
+
+# vcs / ci / infra
+.git
+.github
+.vercel
+.claude
+
+# frontend y docs (el server no los necesita)
+apps/web
+design
+
+# misc
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
