@@ -1,68 +1,58 @@
-// ── Tipos base del dominio (compartidos cliente ↔ servidor) ──
+export type Tile = [number, number]; // [0..6, 0..6]
+
+export type PlacedTile = {
+  tile: Tile;
+  isDouble: boolean;
+  placedBy: string; // playerId
+  // Minimal representation for rendering and game logic
+  // For the board, we really just need to know the open ends, 
+  // but keeping track of placed tiles helps with UI.
+};
 
 export type Ruleset = 'cuban' | 'block' | 'draw';
 export type Mode = 'team2v2' | 'ffa' | '1v1';
-export type Team = 'A' | 'B';
-export type ConnectionStatus = 'online' | 'reconnecting' | 'bot';
 export type RoomStatus = 'lobby' | 'playing' | 'handOver' | 'matchOver';
-
-/** Una ficha: par de valores 0..6. Ej: { a: 3, b: 5 }. */
-export interface Tile {
-  a: number;
-  b: number;
-}
-
-export type BoardEnd = 'left' | 'right';
-
-/** Ficha ya colocada en la mesa, indicando por qué extremo se pegó. */
-export interface PlacedTile {
-  tile: Tile;
-  end: BoardEnd | 'root';
-}
+export type ConnectionStatus = 'online' | 'reconnecting' | 'bot';
 
 export interface Seat {
-  index: number;
   playerId: string | null;
   name: string;
-  team: Team | null; // null en modos ffa / 1v1
+  team: 'A' | 'B' | null;
   connection: ConnectionStatus;
 }
 
-export interface ScoreByTeam {
-  A: number;
-  B: number;
-}
-
-/** Marcador: por equipo (2v2) o por jugador (ffa / 1v1). */
-export type Scores = ScoreByTeam | Record<string, number>;
-
-/** Estado COMPLETO de la partida — vive solo en el servidor (autoritativo). */
-export interface GameState {
-  boneyard: Tile[]; // pozo (modo draw)
-  board: PlacedTile[];
-  hands: Record<string, Tile[]>; // manos privadas por playerId
-  turn: string; // playerId al que le toca
-  passesInARow: number; // para detectar tranca
-  scores: Scores;
-}
-
-/** Vista filtrada que recibe cada cliente: nunca ve las manos ajenas. */
-export interface PlayerView {
-  you: string; // tu playerId
-  yourHand: Tile[];
-  opponentHandCounts: Record<string, number>; // cuántas fichas tiene cada rival
-  board: PlacedTile[];
-  openEnds: { left: number; right: number } | null; // valores abiertos de la mesa
-  turn: string;
-  scores: Scores;
-}
-
 export interface Room {
-  code: string; // "ABCD"
+  code: string;
   ruleset: Ruleset;
   mode: Mode;
-  targetScore: number; // 50 | 100 | 200 (cubano)
+  targetScore: number;
   status: RoomStatus;
   seats: Seat[];
+  game: GameState | null;
   hostId: string;
+}
+
+export interface GameState {
+  boneyard: Tile[];
+  board: PlacedTile[];
+  hands: Record<string, Tile[]>; // playerId -> Tile[]
+  turn: string; // playerId
+  passesInARow: number;
+  scores: { A: number; B: number } | Record<string, number>;
+  openEnds: [number, number] | null; // The two numbers available to play on
+  isFirstTurn: boolean;
+}
+
+// What the server sends to each specific player
+export interface PlayerView {
+  boneyardCount: number;
+  board: PlacedTile[];
+  myHand: Tile[];
+  // How many tiles everyone else has
+  opponentHands: Record<string, number>; 
+  turn: string; // playerId
+  passesInARow: number;
+  scores: { A: number; B: number } | Record<string, number>;
+  openEnds: [number, number] | null;
+  isFirstTurn: boolean;
 }

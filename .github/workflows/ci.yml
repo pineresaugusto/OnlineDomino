@@ -22,8 +22,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Build (shared → server → web)
+        run: pnpm -r build
 
-      - name: Build web (Next.js)
-        run: pnpm --filter @domino/web build
+      - name: Test (reglas del motor)
+        run: pnpm -r test

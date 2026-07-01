@@ -1,59 +1,178 @@
-// ── Reglas puras (verdad del juego). Se usan en el servidor como autoridad
-//    y en el cliente para resaltar jugadas legales (UX).
-//    Fase 0: firmas + utilidades básicas. La lógica real llega en la Fase B1.
-import type { Tile, GameState, PlayerView, Ruleset, BoardEnd } from './types';
+import { GameState, Tile, PlacedTile, PlayerView, Ruleset } from './types';
 
-/** Genera el set doble-6 (28 fichas). */
-export function createDoubleSixSet(): Tile[] {
-  const tiles: Tile[] = [];
-  for (let a = 0; a <= 6; a++) {
-    for (let b = a; b <= 6; b++) {
-      tiles.push({ a, b });
+export function isDouble(tile: Tile): boolean {
+  return tile[0] === tile[1];
+}
+
+export function tileWeight(tile: Tile): number {
+  return tile[0] + tile[1];
+}
+
+export function createBoneyard(): Tile[] {
+  const boneyard: Tile[] = [];
+  for (let i = 0; i <= 6; i++) {
+    for (let j = i; j <= 6; j++) {
+      boneyard.push([i, j]);
     }
   }
-  return tiles;
+  // Shuffle logic should be done at the server, but for pure rules we just define standard boneyard
+  return boneyard;
 }
 
-/** Baraja una copia del arreglo (Fisher–Yates). */
-export function shuffle<T>(input: readonly T[], rnd: () => number = Math.random): T[] {
-  const arr = input.slice();
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1));
-    const tmp = arr[i]!;
-    arr[i] = arr[j]!;
-    arr[j] = tmp;
+export function canPlay(tile: Tile, openEnds: [number, number] | null): boolean {
+  if (!openEnds) return true; // First turn
+  return tile.includes(openEnds[0]) || tile.includes(openEnds[1]);
+}
+
+export function legalMoves(view: PlayerView): { tile: Tile, end: 'left' | 'right' | 'any' }[] {
+  const moves: { tile: Tile, end: 'left' | 'right' | 'any' }[] = [];
+  
+  if (!view.openEnds) {
+    // First turn: anything can be played
+    // In Cuban rules, double-6 is forced if they have it, but for raw legal moves we might just return the whole hand
+    // or filter down to double-6 if we want to enforce it at the rule level.
+    view.myHand.forEach(tile => moves.push({ tile, end: 'any' }));
+    return moves;
   }
-  return arr;
+
+  view.myHand.forEach(tile => {
+    if (tile.includes(view.openEnds![0])) moves.push({ tile, end: 'left' });
+    if (tile.includes(view.openEnds![1])) moves.push({ tile, end: 'right' });
+  });
+
+  return moves;
 }
 
-const NOT_IMPL = 'Pendiente de implementar en la Fase B1 (motor de reglas)';
-
-/** Reparte fichas para N jugadores; devuelve manos + pozo restante. */
-export function dealTiles(_players: number): { hands: Tile[][]; boneyard: Tile[] } {
-  throw new Error(NOT_IMPL);
+export function isBlocked(state: GameState): boolean {
+  // A game is blocked if no one can play and all players have passed sequentially.
+  // We track `passesInARow`. If it equals the number of active players, it's blocked.
+  return state.passesInARow >= Object.keys(state.hands).length;
 }
 
-/** Jugadas legales para la vista dada (ficha + extremo donde se pega). */
-export function legalMoves(_view: PlayerView): { tile: Tile; end: BoardEnd }[] {
-  throw new Error(NOT_IMPL);
+export function scoreHand(state: GameState, ruleset: Ruleset, winnerId: string | null, teamMap: Record<string, 'A' | 'B'>): { winnerTeam: 'A' | 'B' | null, points: number, isBlocked: boolean } {
+  let isBlockedGame = isBlocked(state);
+  let winnerTeam: 'A' | 'B' | null = null;
+  let points = 0;
+
+  if (winnerId) {
+    // Someone played their last tile
+    winnerTeam = teamMap[winnerId];
+    // Calculate sum of all opponents' tiles (in 2v2 Cuban) or all other players (FFA)
+    for (const [id, hand] of Object.entries(state.hands)) {
+      if (teamMap[id] !== winnerTeam) {
+        points += hand.reduce((sum, tile) => sum + tile[0] + tile[1], 0);
+      }
+    }
+    
+    // Check for Capicúa (if last played tile can be played on both ends)
+    // Actually, Capicúa is when the last tile could have been played on either side of the board.
+    // To do this purely here, we would need to know the board state BEFORE the last tile was placed.
+    // Since we don't store history here, we will just add a configurable capicua bonus later if needed, 
+    // or just assume standard points for now. Let's return the basic points.
+  } else if (isBlockedGame) {
+    // Blocked game: team with lowest sum of tiles wins
+    const teamSums = { A: 0, B: 0 };
+    for (const [id, hand] of Object.entries(state.hands)) {
+      const sum = hand.reduce((s, tile) => s + tile[0] + tile[1], 0);
+      const t = teamMap[id];
+      if (t) teamSums[t] += sum;
+    }
+
+    if (teamSums.A < teamSums.B) {
+      winnerTeam = 'A';
+      points = teamSums.B; // In cuban, you get the opponents points
+    } else if (teamSums.B < teamSums.A) {
+      winnerTeam = 'B';
+      points = teamSums.A;
+    } else {
+      // Tie: nobody wins points or whoever caused the block loses... depends on exact rules
+      winnerTeam = null; // Tie
+      points = 0;
+    }
+  }
+
+  return { winnerTeam, points, isBlocked: isBlockedGame };
 }
 
-/** Aplica una jugada y devuelve el nuevo estado (inmutable). */
-export function applyMove(_state: GameState, _move: { tile: Tile; end: BoardEnd; playerId: string }): GameState {
-  throw new Error(NOT_IMPL);
+export function dealTiles(playerIds: string[], ruleset: Ruleset): { hands: Record<string, Tile[]>, boneyard: Tile[] } {
+  let boneyard = createBoneyard();
+  // Shuffle
+  boneyard = boneyard.sort(() => Math.random() - 0.5);
+  
+  const hands: Record<string, Tile[]> = {};
+  playerIds.forEach(id => hands[id] = []);
+  
+  // Basic distribution: 7 tiles each
+  playerIds.forEach(id => {
+    for (let i = 0; i < 7; i++) {
+      if (boneyard.length > 0) hands[id].push(boneyard.pop()!);
+    }
+  });
+
+  return { hands, boneyard };
 }
 
-/** ¿La mano está trancada (nadie puede jugar)? */
-export function isBlocked(_state: GameState): boolean {
-  throw new Error(NOT_IMPL);
+export function whoStarts(hands: Record<string, Tile[]>): string {
+  // Find highest double
+  let highestDouble = -1;
+  let starter = Object.keys(hands)[0];
+
+  for (const [playerId, hand] of Object.entries(hands)) {
+    for (const tile of hand) {
+      if (isDouble(tile) && tile[0] > highestDouble) {
+        highestDouble = tile[0];
+        starter = playerId;
+      }
+    }
+  }
+  
+  // If no double, find highest tile...
+  if (highestDouble === -1) {
+      let highestWeight = -1;
+      for (const [playerId, hand] of Object.entries(hands)) {
+        for (const tile of hand) {
+            if (tileWeight(tile) > highestWeight) {
+                highestWeight = tileWeight(tile);
+                starter = playerId;
+            }
+        }
+      }
+  }
+
+  return starter;
 }
 
-/** Puntaje de la mano según el reglamento. */
-export function scoreHand(_state: GameState, _ruleset: Ruleset): Record<string, number> {
-  throw new Error(NOT_IMPL);
-}
+export function applyMove(state: GameState, move: { tile: Tile, end: 'left' | 'right' | 'any' }, playerId: string): GameState {
+  // Pure function to apply a move and return new state
+  const newState = { ...state };
+  newState.hands = { ...state.hands };
+  newState.hands[playerId] = state.hands[playerId].filter(t => t[0] !== move.tile[0] || t[1] !== move.tile[1]);
+  newState.board = [...state.board];
 
-/** Quién abre la mano (doble más alto en la primera; ganador en las siguientes). */
-export function whoStarts(_state: GameState): string {
-  throw new Error(NOT_IMPL);
+  const placedTile: PlacedTile = {
+    tile: move.tile,
+    isDouble: isDouble(move.tile),
+    placedBy: playerId
+  };
+  
+  if (!state.openEnds) {
+    newState.openEnds = [move.tile[0], move.tile[1]];
+    newState.board.push(placedTile);
+  } else {
+    if (move.end === 'left') {
+      const matchIndex = move.tile.indexOf(state.openEnds[0]);
+      const otherValue = move.tile[matchIndex === 0 ? 1 : 0];
+      newState.openEnds = [otherValue, state.openEnds[1]];
+      newState.board.unshift(placedTile); // simplistic representation
+    } else {
+      const matchIndex = move.tile.indexOf(state.openEnds[1]);
+      const otherValue = move.tile[matchIndex === 0 ? 1 : 0];
+      newState.openEnds = [state.openEnds[0], otherValue];
+      newState.board.push(placedTile);
+    }
+  }
+
+  newState.passesInARow = 0;
+  newState.isFirstTurn = false;
+  return newState;
 }

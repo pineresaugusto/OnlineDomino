@@ -1,53 +1,30 @@
-// ── Contrato de eventos Socket.IO (tipado, compartido cliente ↔ servidor) ──
-import type { Room, PlayerView, Ruleset, Mode, Tile, BoardEnd, Scores } from './types';
+import { Room, PlayerView, Seat, Mode, Ruleset, Tile } from './types';
 
-export interface CreateRoomPayload {
-  name: string;
-  ruleset: Ruleset;
-  mode: Mode;
-  targetScore: number;
-}
-
-export interface JoinRoomPayload {
-  code: string;
-  name: string;
-  playerId?: string; // presente al reconectar
-}
-
-export interface PlayTilePayload {
-  tile: Tile;
-  end: BoardEnd;
-}
-
-/** Eventos que el CLIENTE emite al SERVIDOR. */
+// Events from Client to Server
 export interface ClientToServerEvents {
-  createRoom: (p: CreateRoomPayload, cb: (res: { code: string; playerId: string }) => void) => void;
-  joinRoom: (p: JoinRoomPayload, cb: (res: { ok: boolean; playerId?: string; error?: string }) => void) => void;
-  addBot: (p: { seatIndex: number }) => void;
+  createRoom: (payload: { name: string; ruleset: Ruleset; mode: Mode; targetScore: number }) => void;
+  joinRoom: (payload: { code: string; name: string }) => void;
+  addBot: () => void;
   startGame: () => void;
-  playTile: (p: PlayTilePayload) => void;
+  playTile: (payload: { tile: Tile; end: 'left' | 'right' }) => void;
   pass: () => void;
   drawTile: () => void;
-  sendEmote: (p: { emote: string }) => void;
-  sendChat: (p: { text: string }) => void;
+  sendEmote: (emoteId: string) => void;
+  sendChat: (message: string) => void;
   requestRematch: () => void;
   leaveRoom: () => void;
-
-  // ── Backlog (reservados; NO se implementan en v1) ──
-  // joinQueue: (p: { ruleset: Ruleset; mode: Mode; name: string }) => void;
-  // leaveQueue: () => void;
 }
 
-/** Eventos que el SERVIDOR emite al CLIENTE. */
+// Events from Server to Client
 export interface ServerToClientEvents {
-  roomUpdate: (room: Room) => void;
+  roomUpdate: (room: Omit<Room, 'game'>) => void; // Send room without the full GameState
   gameUpdate: (view: PlayerView) => void;
   yourTurn: () => void;
-  turnTimer: (p: { secondsLeft: number }) => void;
-  handResult: (p: { scores: Scores; winner: string | null }) => void;
-  matchResult: (p: { winner: string }) => void;
-  emote: (p: { from: string; emote: string }) => void;
-  chat: (p: { from: string; text: string }) => void;
-  playerConnection: (p: { playerId: string; status: string }) => void;
-  errorMsg: (p: { message: string }) => void;
+  turnTimer: (secondsLeft: number) => void;
+  handResult: (payload: { winnerTeam: 'A' | 'B' | string | null; points: number; isBlocked: boolean; fullHands: Record<string, Tile[]> }) => void;
+  matchResult: (payload: { winnerTeam: 'A' | 'B' | string; finalScores: any }) => void;
+  emote: (payload: { playerId: string; emoteId: string }) => void;
+  chat: (payload: { playerId: string; message: string }) => void;
+  playerConnection: (payload: { playerId: string; status: Seat['connection'] }) => void;
+  error: (message: string) => void;
 }
