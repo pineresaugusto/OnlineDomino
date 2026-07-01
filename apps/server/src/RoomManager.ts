@@ -54,6 +54,7 @@ export class RoomManager {
     
     socket.join(code);
     socket.join(hostId);
+    socket.emit('identity', { playerId: hostId, code });
     this.emitRoomUpdate(code);
   }
 
@@ -93,6 +94,7 @@ export class RoomManager {
     
     socket.join(code);
     socket.join(playerId);
+    socket.emit('identity', { playerId, code });
     this.emitRoomUpdate(code);
   }
 

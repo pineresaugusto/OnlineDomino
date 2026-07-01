@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Dominó Online · Prototipo de diseño</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════
+   Dominó Online — Prototipo de diseño (referencia para G1–G4)
+   Un solo archivo, mobile-first. No es la app real (esa vive en
+   apps/web con Next.js); esto define look & feel y el flujo.
+   ══════════════════════════════════════════════════════════════ */
+:root{
+  --felt:#0d6e3c; --felt-dark:#083f24; --felt-lite:#13884a;
+  --ivory:#f5efdf; --ivory-2:#e9dfc4; --ivory-edge:#cdbf9c;
+  --ink:#24282b; --ink-soft:#3a4046;
+  --wood:#6d4726; --wood-dark:#482d15;
+  --brass:#e0bd77; --brass-deep:#b8914a;
+  --danger:#c0472f; --ok:#2fa564;
+  --line:rgba(255,255,255,.14);
+  --glass:rgba(255,255,255,.08);
+  --shadow-lg:0 18px 40px rgba(0,0,0,.42);
+  --shadow-md:0 8px 20px rgba(0,0,0,.30);
+  --r:18px;
+  --sans:'Figtree',system-ui,sans-serif;
+  --serif:'Fraunces',Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--sans);
+  color:var(--ivory);
+  background:
+    radial-gradient(1200px 800px at 20% -10%, #114f2e 0%, transparent 60%),
+    radial-gradient(1000px 700px at 100% 110%, #0a5230 0%, transparent 55%),
+    linear-gradient(160deg,#0a3f24,#06301c);
+  min-height:100vh;
+  display:flex; flex-direction:column; align-items:center;
+  padding:26px 14px 60px;
+  gap:20px;
+}
+/* felt grain */
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay;
+}
+.wrap-title{text-align:center; z-index:1}
+.wrap-title h1{font-family:var(--serif); font-weight:600; font-size:22px; letter-spacing:.2px}
+.wrap-title p{opacity:.7; font-size:13px; margin-top:2px}
+
+/* ── Device frame ── */
+.device{
+  position:relative; z-index:1;
+  width:min(430px,100%); height:860px; max-height:calc(100vh - 40px);
+  background:linear-gradient(160deg,#0f7a43,#0a5531 55%,#083f26);
+  border-radius:40px;
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:var(--shadow-lg), inset 0 0 0 6px #05271700, inset 0 1px 0 rgba(255,255,255,.15);
+  overflow:hidden;
+  display:flex; flex-direction:column;
+}
+.device::after{ /* felt texture inside */
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background:radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,.06), transparent 55%);
+}
+.statusbar{
+  height:34px; flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px; font-size:12px; font-weight:600; opacity:.85; z-index:2;
+}
+.statusbar .dots{display:flex; gap:4px; align-items:center}
+.statusbar .dots span{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.8}
+
+/* screens */
+.screen{display:none; flex:1 1 auto; flex-direction:column; min-height:0; padding:8px 20px 22px; position:relative; z-index:1; overflow:auto}
+.screen.active{display:flex; animation:fade .35s ease both}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.screen::-webkit-scrollbar{width:0}
+
+/* ── shared UI ── */
+.btn{
+  font-family:var(--sans); font-weight:700; font-size:16px; color:var(--ink);
+  background:linear-gradient(180deg,var(--brass),var(--brass-deep));
+  border:none; border-radius:14px; padding:15px 18px; width:100%;
+  cursor:pointer; box-shadow:var(--shadow-md); letter-spacing:.2px;
+  transition:transform .12s ease, filter .12s ease;
+}
+.btn:hover{filter:brightness(1.06)} .btn:active{transform:translateY(1px) scale(.995)}
+.btn.ghost{background:var(--glass); color:var(--ivory); border:1px solid var(--line); box-shadow:none; backdrop-filter:blur(6px)}
+.btn.wa{background:linear-gradient(180deg,#4ad572,#25a24a); color:#04310f}
+.btn:disabled{filter:grayscale(.5) brightness(.8); cursor:not-allowed}
+.field{
+  width:100%; background:rgba(0,0,0,.22); border:1px solid var(--line); color:var(--ivory);
+  border-radius:14px; padding:15px 16px; font-size:17px; font-family:var(--sans); outline:none;
+}
+.field::placeholder{color:rgba(245,239,223,.45)}
+.field:focus{border-color:var(--brass); box-shadow:0 0 0 3px rgba(224,189,119,.18)}
+.label{font-size:12px; text-transform:uppercase; letter-spacing:1.4px; opacity:.6; margin:4px 2px 8px; font-weight:700}
+.back{background:none;border:none;color:var(--ivory);opacity:.75;font-size:15px;cursor:pointer;padding:4px 0;display:flex;gap:6px;align-items:center}
+.spacer{flex:1 1 auto}
+
+/* ── Domino tile ── */
+.tile{
+  --w:46px;
+  width:var(--w); aspect-ratio:1/2;
+  background:linear-gradient(160deg,var(--ivory),var(--ivory-2));
+  border-radius:8px; border:1px solid var(--ivory-edge);
+  box-shadow:0 4px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
+  display:flex; flex-direction:column; overflow:hidden; flex:0 0 auto;
+  position:relative;
+}
+.tile.h{aspect-ratio:2/1; flex-direction:row; --w:80px}
+.tile .half{flex:1; display:grid; grid-template:repeat(3,1fr)/repeat(3,1fr); padding:14%; gap:6%}
+.tile .divider{height:2px; background:linear-gradient(90deg,transparent,rgba(0,0,0,.4),transparent)}
+.tile.h .divider{height:auto; width:2px; background:linear-gradient(180deg,transparent,rgba(0,0,0,.4),transparent)}
+.pip{border-radius:50%; align-self:center; justify-self:center; width:74%; aspect-ratio:1; background:radial-gradient(circle at 35% 30%, #4a4f55, var(--ink)); box-shadow:inset 0 -1px 1px rgba(0,0,0,.5)}
+.pip.off{visibility:hidden}
+.tile.play{cursor:pointer; transition:transform .14s ease, box-shadow .14s ease}
+.tile.play:hover{transform:translateY(-10px)}
+.tile.legal{box-shadow:0 4px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7), 0 0 0 2px var(--brass), 0 0 16px rgba(224,189,119,.55)}
+.tile.dim{opacity:.55}
+
+/* ═══════════ ONBOARDING ═══════════ */
+#s-onboarding{justify-content:center; text-align:center; gap:18px}
+.logo{
+  width:96px; height:96px; margin:0 auto 6px; border-radius:24px; transform:rotate(-8deg);
+  background:linear-gradient(160deg,var(--ivory),var(--ivory-2)); border:1px solid var(--ivory-edge);
+  box-shadow:var(--shadow-md); display:grid; grid-template-rows:1fr 2px 1fr; padding:12px; gap:0;
+}
+.logo .half{display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:8%;padding:6%}
+.logo .divider{background:linear-gradient(90deg,transparent,rgba(0,0,0,.35),transparent)}
+.brand{font-family:var(--serif); font-weight:700; font-size:44px; line-height:1; letter-spacing:.5px}
+.brand .accent{color:var(--brass)}
+.tag{opacity:.75; font-size:15px; max-width:24ch; margin:0 auto}
+.onb-form{margin-top:14px; display:flex; flex-direction:column; gap:12px}
+
+/* ═══════════ MENU ═══════════ */
+.hello{font-family:var(--serif); font-size:26px; font-weight:600; margin:10px 0 2px}
+.hello small{display:block; font-family:var(--sans); font-size:13px; opacity:.6; font-weight:500; margin-top:2px}
+.menu-cards{display:flex; flex-direction:column; gap:12px; margin-top:18px}
+.mcard{
+  display:flex; align-items:center; gap:14px; text-align:left; cursor:pointer;
+  background:var(--glass); border:1px solid var(--line); border-radius:var(--r); padding:16px;
+  backdrop-filter:blur(6px); transition:transform .12s ease, border-color .12s ease, background .12s;
+}
+.mcard:hover{transform:translateY(-2px); border-color:rgba(224,189,119,.55); background:rgba(255,255,255,.12)}
+.mcard .ic{width:46px;height:46px;border-radius:12px;flex:0 0 auto;display:grid;place-items:center;font-size:22px;background:linear-gradient(160deg,var(--felt-lite),var(--felt-dark));border:1px solid var(--line)}
+.mcard.primary .ic{background:linear-gradient(160deg,var(--brass),var(--brass-deep))}
+.mcard h3{font-size:16.5px; font-weight:700}
+.mcard p{font-size:12.5px; opacity:.65; margin-top:1px}
+.mcard .chev{margin-left:auto;opacity:.4;font-size:20px}
+
+/* ═══════════ CREATE / CONFIG ═══════════ */
+.section{margin-top:16px}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{
+  flex:1 1 auto; min-width:30%; cursor:pointer; text-align:left;
+  background:rgba(0,0,0,.2); border:1px solid var(--line); border-radius:13px; padding:11px 12px;
+  transition:.12s;
+}
+.chip .t{font-weight:700; font-size:14px} .chip .d{font-size:11px; opacity:.6; margin-top:2px}
+.chip[aria-checked="true"]{border-color:var(--brass); background:rgba(224,189,119,.14); box-shadow:0 0 0 1px var(--brass) inset}
+.chip.sm{min-width:0; flex:1; text-align:center}
+.chip.sm .t{font-size:15px}
+
+/* ═══════════ LOBBY ═══════════ */
+.code-card{
+  margin-top:14px; text-align:center; background:rgba(0,0,0,.24); border:1px dashed var(--brass);
+  border-radius:var(--r); padding:18px;
+}
+.code-card .lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.6}
+.code{font-family:var(--serif); font-weight:700; font-size:46px; letter-spacing:10px; color:var(--brass); margin:2px 0 12px; padding-left:10px}
+.share-row{display:flex; gap:8px}
+.teams{display:flex; gap:10px; margin-top:16px}
+.team{flex:1; background:var(--glass); border:1px solid var(--line); border-radius:16px; padding:12px}
+.team h4{font-size:11px; letter-spacing:1.5px; text-transform:uppercase; opacity:.6; text-align:center; margin-bottom:10px}
+.team.us h4{color:var(--brass)}
+.seat{display:flex; align-items:center; gap:10px; padding:9px; border-radius:12px; background:rgba(0,0,0,.18); margin-bottom:8px}
+.seat:last-child{margin-bottom:0}
+.avatar{width:34px;height:34px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;font-weight:700;font-size:14px;background:linear-gradient(160deg,var(--felt-lite),var(--felt-dark));border:1px solid var(--line)}
+.seat.empty{border:1px dashed var(--line); background:transparent; cursor:pointer; justify-content:center; color:rgba(245,239,223,.6); font-size:13px; font-weight:600}
+.seat .nm{font-size:14px;font-weight:600}
+.seat .rl{font-size:11px;opacity:.55}
+.seat .tagbot{margin-left:auto;font-size:10px;background:var(--glass);padding:2px 7px;border-radius:20px;opacity:.8}
+
+/* ═══════════ GAME ═══════════ */
+#s-game{padding:8px 12px 14px; gap:8px}
+.opp-row{display:flex; justify-content:space-around; gap:8px; padding-top:4px}
+.player{display:flex; flex-direction:column; align-items:center; gap:4px; opacity:.85; transition:.2s}
+.player.turn{opacity:1}
+.player .av{position:relative; width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:linear-gradient(160deg,var(--felt-lite),var(--felt-dark));border:1px solid var(--line)}
+.player.turn .av{border-color:var(--brass); box-shadow:0 0 0 2px var(--brass), 0 0 14px rgba(224,189,119,.5)}
+.player .nm{font-size:11.5px; font-weight:600}
+.player .cnt{font-size:10.5px; opacity:.6; display:flex; gap:3px; align-items:center}
+.mini-tiles{display:flex; gap:2px}
+.mini{width:7px;height:14px;background:var(--ivory);border-radius:2px;opacity:.85}
+
+.scorebar{display:flex; align-items:center; justify-content:center; gap:14px; font-size:13px; margin:2px 0}
+.scorebar .s{background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-weight:700}
+.scorebar .s.us b{color:var(--brass)} .scorebar .goal{opacity:.5;font-size:11px}
+
+.board-wrap{flex:1 1 auto; min-height:0; position:relative; border-radius:20px;
+  background:radial-gradient(120% 120% at 50% 30%, rgba(255,255,255,.06), transparent 60%), rgba(0,0,0,.14);
+  border:1px solid var(--line); box-shadow:inset 0 4px 24px rgba(0,0,0,.35);
+  display:flex; align-items:center; justify-content:center; padding:16px; overflow:hidden;
+}
+.board{display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:5px; max-width:100%}
+.end-pad{position:absolute; bottom:10px; font-size:10px; font-weight:700; letter-spacing:.5px; padding:4px 9px; border-radius:20px; background:rgba(224,189,119,.16); border:1px solid var(--brass); color:var(--brass)}
+.end-pad.l{left:12px} .end-pad.r{right:12px}
+
+.turnbar{height:6px; border-radius:6px; background:rgba(0,0,0,.25); overflow:hidden; margin:2px 2px 0}
+.turnbar i{display:block; height:100%; width:100%; background:linear-gradient(90deg,var(--brass),var(--danger)); transform-origin:left; animation:count 22s linear forwards}
+@keyframes count{to{transform:scaleX(0)}}
+.turn-lbl{font-size:11px; opacity:.7; text-align:center; margin-top:3px}
+.turn-lbl b{color:var(--brass)}
+
+.hand-zone{flex:0 0 auto}
+.hand{display:flex; justify-content:center; gap:6px; padding-top:8px; min-height:100px}
+.hand .tile{--w:44px}
+.emotes{display:flex; gap:6px; justify-content:center; margin-top:8px}
+.emote{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--glass);font-size:18px;cursor:pointer;display:grid;place-items:center;transition:.12s}
+.emote:hover{transform:translateY(-2px); background:rgba(255,255,255,.14)}
+.bubble{position:absolute; top:64px; left:50%; transform:translateX(-50%) scale(.6); opacity:0; background:var(--ivory); color:var(--ink); font-weight:700; padding:8px 14px; border-radius:16px; font-size:14px; box-shadow:var(--shadow-md); pointer-events:none; transition:.2s; z-index:5}
+.bubble.show{opacity:1; transform:translateX(-50%) scale(1)}
+
+/* ═══════════ END ═══════════ */
+#s-end{justify-content:center; text-align:center; gap:6px}
+.trophy{font-size:56px; margin-bottom:4px; filter:drop-shadow(0 6px 10px rgba(0,0,0,.4))}
+.result{font-family:var(--serif); font-size:30px; font-weight:700}
+.result .accent{color:var(--brass)}
+.final{display:flex; gap:14px; justify-content:center; margin:16px 0 22px}
+.final .fb{background:var(--glass);border:1px solid var(--line);border-radius:16px;padding:14px 22px}
+.final .fb .n{font-family:var(--serif);font-size:34px;font-weight:700}
+.final .fb.win{border-color:var(--brass)} .final .fb.win .n{color:var(--brass)}
+.final .fb small{font-size:11px;opacity:.6;letter-spacing:1px;text-transform:uppercase}
+.end-actions{display:flex;flex-direction:column;gap:10px;width:100%}
+
+/* ── prototype flow nav (outside device) ── */
+.proto{z-index:1; text-align:center; max-width:430px; width:100%}
+.proto .cap{font-size:11px; letter-spacing:1.5px; text-transform:uppercase; opacity:.5; margin-bottom:8px; font-weight:700}
+.proto-nav{display:flex; flex-wrap:wrap; gap:6px; justify-content:center}
+.proto-nav button{
+  font-family:var(--sans); font-size:12px; font-weight:600; cursor:pointer; color:var(--ivory);
+  background:var(--glass); border:1px solid var(--line); border-radius:20px; padding:7px 12px; transition:.12s;
+}
+.proto-nav button:hover{border-color:var(--brass)}
+.proto-nav button.on{background:var(--brass); color:var(--ink); border-color:var(--brass)}
+.note{font-size:11px;opacity:.4;margin-top:10px;max-width:40ch;margin-inline:auto;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div class="wrap-title">
+  <h1>Dominó Online — Prototipo de diseño</h1>
+  <p>Referencia visual y de flujo · mobile-first</p>
+</div>
+
+<div class="device">
+  <div class="statusbar">
+    <span id="clock">9:41</span>
+    <span class="dots">Dominó <span></span><span></span><span></span></span>
+  </div>
+
+  <!-- 1 ── ONBOARDING ─────────────────────────────── -->
+  <section class="screen active" id="s-onboarding">
+    <div class="spacer"></div>
+    <div class="logo" id="logo6"></div>
+    <div class="brand">Domin<span class="accent">ó</span></div>
+    <p class="tag">Juega con tus amigos en segundos. Sin registro.</p>
+    <form class="onb-form" onsubmit="event.preventDefault(); enter()">
+      <input class="field" id="nick" placeholder="Escribe tu apodo…" maxlength="14" autocomplete="off">
+      <button class="btn" type="submit">Jugar ▸</button>
+    </form>
+    <div class="spacer"></div>
+  </section>
+
+  <!-- 2 ── MENU ───────────────────────────────────── -->
+  <section class="screen" id="s-menu">
+    <div class="hello">Hola, <span id="hi-name">jugador</span> 👋
+      <small>¿Qué quieres hacer?</small>
+    </div>
+    <div class="menu-cards">
+      <div class="mcard primary" onclick="go('s-create')">
+        <div class="ic">🎲</div>
+        <div><h3>Crear sala</h3><p>Invita a tu pareja y rivales por link</p></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="mcard" onclick="go('s-lobby')">
+        <div class="ic">🔑</div>
+        <div><h3>Unir con código</h3><p>Entra a la sala de un amigo</p></div>
+        <div class="chev">›</div>
+      </div>
+      <div class="mcard" onclick="go('s-game')">
+        <div class="ic">🤖</div>
+        <div><h3>Jugar vs IA</h3><p>Práctica rápida contra la máquina</p></div>
+        <div class="chev">›</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <p class="note">Modos: 2v2 en parejas · 1v1 · Todos contra todos (3–4). El reglamento se elige al crear la sala.</p>
+  </section>
+
+  <!-- 3 ── CREATE ─────────────────────────────────── -->
+  <section class="screen" id="s-create">
+    <button class="back" onclick="go('s-menu')">‹ Volver</button>
+    <div class="section">
+      <div class="label">Reglamento</div>
+      <div class="chips" id="rulechips">
+        <div class="chip" role="radio" aria-checked="true" onclick="pick(this,'rulechips')"><div class="t">Cubano 2v2</div><div class="d">Parejas, a puntos</div></div>
+        <div class="chip" role="radio" aria-checked="false" onclick="pick(this,'rulechips')"><div class="t">Bloqueo</div><div class="d">Sin robar</div></div>
+        <div class="chip" role="radio" aria-checked="false" onclick="pick(this,'rulechips')"><div class="t">Robar</div><div class="d">Del pozo</div></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="label">Modo</div>
+      <div class="chips" id="modechips">
+        <div class="chip" role="radio" aria-checked="true" onclick="pick(this,'modechips')"><div class="t">2v2 parejas</div><div class="d">4 jugadores</div></div>
+        <div class="chip" role="radio" aria-checked="false" onclick="pick(this,'modechips')"><div class="t">1v1</div><div class="d">Duelo</div></div>
+        <div class="chip" role="radio" aria-checked="false" onclick="pick(this,'modechips')"><div class="t">Todos</div><div class="d">3–4 jug.</div></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="label">Meta de puntos</div>
+      <div class="chips" id="goalchips">
+        <div class="chip sm" role="radio" aria-checked="false" onclick="pick(this,'goalchips')"><div class="t">50</div></div>
+        <div class="chip sm" role="radio" aria-checked="true" onclick="pick(this,'goalchips')"><div class="t">100</div></div>
+        <div class="chip sm" role="radio" aria-checked="false" onclick="pick(this,'goalchips')"><div class="t">200</div></div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" onclick="go('s-lobby')">Crear sala ▸</button>
+  </section>
+
+  <!-- 4 ── LOBBY ──────────────────────────────────── -->
+  <section class="screen" id="s-lobby">
+    <button class="back" onclick="go('s-create')">‹ Volver</button>
+    <div class="code-card">
+      <div class="lbl">Código de sala</div>
+      <div class="code">ABCD</div>
+      <div class="share-row">
+        <button class="btn ghost" onclick="toast('Link copiado')">🔗 Copiar link</button>
+        <button class="btn wa" onclick="toast('Abriendo WhatsApp…')">Compartir</button>
+      </div>
+    </div>
+    <div class="teams">
+      <div class="team us">
+        <h4>Nosotros</h4>
+        <div class="seat"><div class="avatar">G</div><div><div class="nm" id="lob-me">Tú</div><div class="rl">Anfitrión</div></div></div>
+        <div class="seat empty" onclick="toast('Invitación enviada')">+ Invitar pareja</div>
+      </div>
+      <div class="team">
+        <h4>Ellos</h4>
+        <div class="seat empty" onclick="toast('Invitación enviada')">+ Invitar rival</div>
+        <div class="seat"><div class="avatar">🤖</div><div><div class="nm">Bot</div><div class="rl">Rival</div></div><span class="tagbot">IA</span></div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" onclick="go('s-game')">Empezar partida ▸</button>
+    <p class="note">Los asientos vacíos se pueden cubrir con un bot para empezar ya.</p>
+  </section>
+
+  <!-- 5 ── GAME ───────────────────────────────────── -->
+  <section class="screen" id="s-game">
+    <div class="opp-row">
+      <div class="player"><div class="av">R</div><div class="nm">Rival 1</div><div class="cnt"><span class="mini-tiles"></span>7</div></div>
+      <div class="player turn" id="partner"><div class="av">F</div><div class="nm">Ferreira</div><div class="cnt"><span class="mini-tiles"></span>6</div></div>
+      <div class="player"><div class="av">🤖</div><div class="nm">Bot</div><div class="cnt"><span class="mini-tiles"></span>7</div></div>
+    </div>
+
+    <div class="scorebar">
+      <div class="s us">Nosotros <b>45</b></div>
+      <div class="goal">meta 100</div>
+      <div class="s">Ellos 30</div>
+    </div>
+
+    <div class="board-wrap">
+      <div id="bubble" class="bubble"></div>
+      <div class="board" id="board"></div>
+      <div class="end-pad l" id="end-l">◂ 1</div>
+      <div class="end-pad r" id="end-r">3 ▸</div>
+    </div>
+
+    <div class="turnbar" id="turnbar"><i></i></div>
+    <div class="turn-lbl" id="turnlbl">Tu turno — <b>toca una ficha resaltada</b></div>
+
+    <div class="hand-zone">
+      <div class="hand" id="hand"></div>
+      <div class="emotes">
+        <button class="emote" onclick="emote('👏')">👏</button>
+        <button class="emote" onclick="emote('🔥')">🔥</button>
+        <button class="emote" onclick="emote('😅')">😅</button>
+        <button class="emote" onclick="emote('¡Paso!')">🙅</button>
+        <button class="emote" onclick="emote('¡Capicúa!')">🎯</button>
+        <button class="emote" onclick="toast('Chat abierto')">💬</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 ── END ────────────────────────────────────── -->
+  <section class="screen" id="s-end">
+    <div class="spacer"></div>
+    <div class="trophy">🏆</div>
+    <div class="result">¡Ganó <span class="accent">tu pareja</span>!</div>
+    <div class="final">
+      <div class="fb win"><div class="n">102</div><small>Nosotros</small></div>
+      <div class="fb"><div class="n">76</div><small>Ellos</small></div>
+    </div>
+    <div class="end-actions">
+      <button class="btn" onclick="resetGame(); go('s-game')">↻ Revancha</button>
+      <button class="btn ghost" onclick="go('s-menu')">Salir al menú</button>
+    </div>
+    <div class="spacer"></div>
+  </section>
+</div>
+
+<!-- prototype flow nav -->
+<div class="proto">
+  <div class="cap">Flujo del prototipo — haz clic para saltar</div>
+  <div class="proto-nav" id="pnav">
+    <button data-s="s-onboarding">1 · Ingreso</button>
+    <button data-s="s-menu">2 · Menú</button>
+    <button data-s="s-create">3 · Crear sala</button>
+    <button data-s="s-lobby">4 · Lobby</button>
+    <button data-s="s-game">5 · Mesa</button>
+    <button data-s="s-end">6 · Fin</button>
+  </div>
+  <p class="note">Prototipo de referencia (no es la app real). Toca las fichas resaltadas en la Mesa para ver una jugada.</p>
+</div>
+
+<script>
+/* ── pip layouts (0..6) on a 3x3 grid ── */
+const PIPS={0:[],1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+function halfHTML(v){let s='';for(let i=0;i<9;i++)s+=`<div class="pip${PIPS[v].includes(i)?'':' off'}"></div>`;return `<div class="half">${s}</div>`;}
+function tileHTML(a,b,{h=false,cls=''}={}){return `<div class="tile ${h?'h':''} ${cls}">${halfHTML(a)}<div class="divider"></div>${halfHTML(b)}</div>`;}
+
+/* logo tile 6|6 */
+document.getElementById('logo6').innerHTML = halfHTML(6)+'<div class="divider"></div>'+halfHTML(6);
+
+/* ── navigation ── */
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));
+  document.querySelectorAll('#pnav button').forEach(b=>b.classList.toggle('on',b.dataset.s===id));
+  document.querySelector('.device').scrollTop=0;
+  if(id==='s-game') restartTurnbar();
+}
+document.querySelectorAll('#pnav button').forEach(b=>b.onclick=()=>go(b.dataset.s));
+
+function enter(){
+  const n=(document.getElementById('nick').value||'').trim()||'Gosto';
+  document.getElementById('hi-name').textContent=n;
+  document.getElementById('lob-me').textContent=n;
+  go('s-menu');
+}
+function pick(el,group){document.querySelectorAll('#'+group+' .chip').forEach(c=>c.setAttribute('aria-checked','false'));el.setAttribute('aria-checked','true');}
+
+/* ── toast / emote ── */
+function toast(t){emote(t);}
+function emote(t){
+  const b=document.getElementById('bubble');
+  if(document.getElementById('s-game').classList.contains('active')){
+    b.textContent=t; b.classList.add('show'); clearTimeout(b._t);
+    b._t=setTimeout(()=>b.classList.remove('show'),1400);
+  }else{
+    // simple top toast when not in game
+    let el=document.createElement('div'); el.textContent=t;
+    el.style.cssText='position:fixed;top:18px;left:50%;transform:translateX(-50%);background:var(--ivory);color:var(--ink);font-weight:700;padding:8px 16px;border-radius:20px;z-index:99;box-shadow:var(--shadow-md);font-size:13px';
+    document.body.appendChild(el); setTimeout(()=>el.remove(),1300);
+  }
+}
+
+/* ── game state (demo) ── */
+const INIT_BOARD=[[5,5,true],[5,3],[3,3,true],[5,1]]; // [a,b,double?]
+const INIT_HAND=[[6,6],[3,5],[0,4],[2,2],[1,6],[3,4]];
+let board=[], hand=[], myTurn=true;
+
+function ends(){ if(!board.length) return [null,null];
+  return [board[0][0], board[board.length-1][1]]; }
+function renderBoard(){
+  const el=document.getElementById('board'); el.innerHTML='';
+  board.forEach(t=>{ const dbl=t[2]; el.insertAdjacentHTML('beforeend', tileHTML(t[0],t[1],{h:!dbl})); });
+  const [l,r]=ends();
+  document.getElementById('end-l').textContent='◂ '+(l??'—');
+  document.getElementById('end-r').textContent=(r??'—')+' ▸';
+}
+function renderHand(){
+  const el=document.getElementById('hand'); el.innerHTML='';
+  const [l,r]=ends();
+  hand.forEach((t,i)=>{
+    const legal = myTurn && (t.includes(l)||t.includes(r));
+    const cls = legal?'play legal':'play dim';
+    const wrap=document.createElement('div'); wrap.innerHTML=tileHTML(t[0],t[1],{cls});
+    const node=wrap.firstElementChild; node.onclick=()=>play(i,legal);
+    el.appendChild(node);
+  });
+}
+function play(i,legal){
+  if(!legal){ emote('Ahí no pega 🙂'); return; }
+  const t=hand[i]; const [l,r]=ends();
+  if(t.includes(r)){ board.push(t[1]===r?[t[0],t[1]]:[t[1],t[0]]); }
+  else { const nt=t[0]===l?[t[1],t[0]]:[t[0],t[1]]; board.unshift(nt); }
+  hand.splice(i,1);
+  renderBoard(); renderHand();
+  emote('¡Buena! 👏');
+  document.getElementById('turnlbl').innerHTML = hand.length? 'Turno de <b>Ferreira</b>…' : '<b>¡Te pegaste!</b> 🎉';
+  restartTurnbar();
+  if(!hand.length){ setTimeout(()=>go('s-end'),900); }
+}
+function resetGame(){ board=INIT_BOARD.map(x=>x.slice()); hand=INIT_HAND.map(x=>x.slice()); myTurn=true;
+  document.getElementById('turnlbl').innerHTML='Tu turno — <b>toca una ficha resaltada</b>';
+  renderBoard(); renderHand(); }
+function restartTurnbar(){ const bar=document.querySelector('#turnbar i'); bar.style.animation='none'; void bar.offsetWidth; bar.style.animation=''; }
+
+/* mini tile counters */
+document.querySelectorAll('.mini-tiles').forEach((m,idx)=>{const n=[7,6,7][idx]||6;m.innerHTML=Array(Math.min(n,4)).fill('<i class="mini"></i>').join('');});
+
+/* clock */
+setInterval(()=>{const d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});},1000);
+
+resetGame();
+</script>
+</body>
+</html>
