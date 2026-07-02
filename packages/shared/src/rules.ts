@@ -146,28 +146,49 @@ export function applyMove(state: GameState, move: { tile: Tile, end: 'left' | 'r
   // Pure function to apply a move and return new state
   const newState = { ...state };
   newState.hands = { ...state.hands };
-  newState.hands[playerId] = state.hands[playerId].filter(t => t[0] !== move.tile[0] || t[1] !== move.tile[1]);
+  
+  // Robust filter for removing tile from hand in either orientation
+  newState.hands[playerId] = state.hands[playerId].filter(t => 
+    !((t[0] === move.tile[0] && t[1] === move.tile[1]) || (t[0] === move.tile[1] && t[1] === move.tile[0]))
+  );
+  
   newState.board = [...state.board];
 
-  const placedTile: PlacedTile = {
-    tile: move.tile,
-    isDouble: isDouble(move.tile),
-    placedBy: playerId
-  };
-  
+  let orientedTile = move.tile;
   if (!state.openEnds) {
     newState.openEnds = [move.tile[0], move.tile[1]];
+    const placedTile: PlacedTile = {
+      tile: orientedTile,
+      isDouble: isDouble(move.tile),
+      placedBy: playerId
+    };
     newState.board.push(placedTile);
   } else {
     if (move.end === 'left') {
       const matchIndex = move.tile.indexOf(state.openEnds[0]);
       const otherValue = move.tile[matchIndex === 0 ? 1 : 0];
       newState.openEnds = [otherValue, state.openEnds[1]];
-      newState.board.unshift(placedTile); // simplistic representation
+      
+      // Left end play: we want the matched value on the right, other value on the left
+      orientedTile = [otherValue, state.openEnds[0]];
+      const placedTile: PlacedTile = {
+        tile: orientedTile,
+        isDouble: isDouble(move.tile),
+        placedBy: playerId
+      };
+      newState.board.unshift(placedTile);
     } else {
       const matchIndex = move.tile.indexOf(state.openEnds[1]);
       const otherValue = move.tile[matchIndex === 0 ? 1 : 0];
       newState.openEnds = [state.openEnds[0], otherValue];
+      
+      // Right end play: we want the matched value on the left, other value on the right
+      orientedTile = [state.openEnds[1], otherValue];
+      const placedTile: PlacedTile = {
+        tile: orientedTile,
+        isDouble: isDouble(move.tile),
+        placedBy: playerId
+      };
       newState.board.push(placedTile);
     }
   }

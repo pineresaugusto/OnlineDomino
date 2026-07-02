@@ -76,17 +76,39 @@ body::before {
 
 /* ── Domino tile ── */
 .tile {
-  --w: 46px; width: var(--w); aspect-ratio: 1/2;
+  --w: 46px; width: var(--w);
   background: linear-gradient(160deg, var(--color-ivory), var(--color-ivory-2));
   border-radius: 8px; border: 1px solid var(--color-ivory-edge);
   box-shadow: 0 4px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.7);
   display: flex; flex-direction: column; overflow: hidden; flex: 0 0 auto;
 }
-.tile.h { aspect-ratio: 2/1; flex-direction: row; --w: 80px; }
-.tile .half { flex: 1; display: grid; grid-template: repeat(3,1fr)/repeat(3,1fr); padding: 14%; gap: 6%; }
+.tile.h { flex-direction: row; --w: 80px; width: var(--w); height: calc((var(--w) - 2px) / 2); }
+.tile .half {
+  aspect-ratio: 1 / 1;
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  grid-template-columns: repeat(3, 1fr);
+  padding: 14%;
+  gap: 6%;
+}
+.tile:not(.h) .half { width: 100%; }
+.tile.h .half { height: 100%; width: auto; }
 .tile .divider { height: 2px; background: linear-gradient(90deg, transparent, rgba(0,0,0,.4), transparent); }
 .tile.h .divider { height: auto; width: 2px; background: linear-gradient(180deg, transparent, rgba(0,0,0,.4), transparent); }
-.pip { border-radius: 50%; align-self: center; justify-self: center; width: 74%; aspect-ratio: 1; background: radial-gradient(circle at 35% 30%, #4a4f55, var(--color-ink)); box-shadow: inset 0 -1px 1px rgba(0,0,0,.5); }
+.domino-dot {
+    @apply bg-[#1a1a1a] rounded-full;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+    width: 65%; height: 65%; margin: auto;
+  }
+.pip {
+  border-radius: 50%;
+  align-self: center;
+  justify-self: center;
+  width: 65%;
+  height: 65%;
+  background: radial-gradient(circle at 35% 30%, #4a4f55, var(--color-ink));
+  box-shadow: inset 0 -1px 1px rgba(0,0,0,.5);
+}
 .pip.off { visibility: hidden; }
 .tile.play { cursor: pointer; transition: transform .14s ease, box-shadow .14s ease; }
 .tile.play:hover { transform: translateY(-10px); }
