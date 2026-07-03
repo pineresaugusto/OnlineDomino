@@ -5,7 +5,7 @@ function initial(name: string, isBot: boolean) {
   return isBot ? '🤖' : (name?.[0]?.toUpperCase() ?? '?');
 }
 
-export function Players({ seats, myId, view }: { seats: Seat[]; myId: string | null; view: PlayerView }) {
+export function Players({ seats, myId, view, showTeams }: { seats: Seat[]; myId: string | null; view: PlayerView; showTeams?: boolean }) {
   const others = seats.filter((s) => s.playerId && s.playerId !== myId);
   return (
     <div className="opp-row">
@@ -17,7 +17,7 @@ export function Players({ seats, myId, view }: { seats: Seat[]; myId: string | n
         return (
           <div key={s.playerId} className={`player ${isTurn ? 'turn' : ''} ${off ? 'off' : ''}`}>
             <div className="av">{initial(s.name, isBot)}</div>
-            <div className="nm">{s.name}{s.team ? ` · ${s.team}` : ''}</div>
+            <div className="nm">{s.name}{showTeams && s.team ? ` · ${s.team}` : ''}</div>
             <div className="cnt">🁢 {count}{off ? ' · reconectando…' : ''}</div>
           </div>
         );

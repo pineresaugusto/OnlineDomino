@@ -10,6 +10,7 @@ export const mockRoom: Room = {
   status: 'playing',
   hostId: 'p1',
   game: null,
+  scores: { A: 45, B: 30 },
   seats: [
     { playerId: 'p1', name: 'Gosto', team: 'A', connection: 'online' },
     { playerId: 'p2', name: 'Rival 1', team: 'B', connection: 'online' },
@@ -31,11 +32,12 @@ export const mockPlayerView: PlayerView = {
   board: [
     { tile: [5, 5], isDouble: true, placedBy: 'p2' },
     { tile: [5, 3], isDouble: false, placedBy: 'p3' },
-    { tile: [5, 1], isDouble: false, placedBy: 'p4' },
+    { tile: [3, 1], isDouble: false, placedBy: 'p4' },
   ],
-  openEnds: [1, 3],
+  openEnds: [5, 1],
   turn: 'p1',
   passesInARow: 0,
   isFirstTurn: false,
+  requiredOpener: null,
   scores: { A: 45, B: 30 },
 };

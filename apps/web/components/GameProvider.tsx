@@ -1,18 +1,22 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import type { Mode, PlayerView, Room, Ruleset, Tile } from '@domino/shared';
+import type { Mode, PlayerView, Room, Ruleset, ScoreKey, Tile } from '@domino/shared';
 import { getSocket } from '@/lib/socket';
 
 type Screen = 'onboarding' | 'menu' | 'create' | 'join' | 'lobby' | 'game';
 type RoomView = Omit<Room, 'game'>;
 
+const SESSION_KEY = 'puerca-domino-session';
+
 interface GameResult {
   kind: 'hand' | 'match';
-  winnerTeam: 'A' | 'B' | string | null;
+  winnerKey: ScoreKey | null;
+  winnerName: string | null;
   points?: number;
   isBlocked?: boolean;
-  finalScores?: unknown;
+  scores?: Record<ScoreKey, number>;
+  fullHands?: Record<string, Tile[]>;
 }
 
 interface Bubble { id: number; playerId: string; text: string; }
@@ -30,6 +34,7 @@ interface GameCtx {
   toast: string | null;
   error: string | null;
   isMyTurn: boolean;
+  turnSeconds: number; // duración del aviso de turno que manda el servidor
   nameOf: (playerId: string) => string;
   setNick: (n: string) => void;
   goto: (s: Screen) => void;
@@ -41,6 +46,7 @@ interface GameCtx {
   startGame: () => void;
   playTile: (tile: Tile, end: 'left' | 'right') => void;
   pass: () => void;
+  drawTile: () => void;
   sendEmote: (emoteId: string) => void;
   sendChat: (message: string) => void;
   rematch: () => void;
@@ -66,6 +72,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [turnSeconds, setTurnSeconds] = useState(60);
 
   const nickRef = useRef('');
   const roomRef = useRef<RoomView | null>(null);
@@ -85,18 +92,41 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setBubbles((b) => b.filter((x) => x.id !== id)), 2400);
   }, []);
 
+  const saveSession = useCallback((c: string, p: string) => {
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ code: c, playerId: p, nick: nickRef.current })); } catch {}
+  }, []);
+  const clearSession = useCallback(() => {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+  }, []);
+
   // ── Wiring de eventos (una vez) ──
   useEffect(() => {
     const socket = getSocket();
     setConnected(socket.connected);
 
-    const onConnect = () => setConnected(true);
+    const tryRejoin = () => {
+      try {
+        const raw = sessionStorage.getItem(SESSION_KEY);
+        if (!raw) return;
+        const s = JSON.parse(raw) as { code?: string; playerId?: string; nick?: string };
+        if (!s.code || !s.playerId) return;
+        if (s.nick) { nickRef.current = s.nick; setNick(s.nick); }
+        socket.emit('rejoinRoom', { code: s.code, playerId: s.playerId });
+      } catch {}
+    };
+
+    const onConnect = () => { setConnected(true); tryRejoin(); };
     const onDisconnect = () => setConnected(false);
     const onIdentity = (p: { playerId: string; code: string }) => {
       setMyId(p.playerId);
       setCode(p.code);
-      if (!autoRef.current) setScreen('lobby');
+      saveSession(p.code, p.playerId);
+      if (!autoRef.current) {
+        // Si hay partida en curso llegará un gameUpdate enseguida y saltará a la mesa.
+        setScreen((cur) => (cur === 'game' ? cur : 'lobby'));
+      }
     };
+    const onRejoinFailed = () => clearSession();
     const onRoom = (r: RoomView) => {
       setRoom(r);
       if (autoRef.current && r.status === 'lobby') {
@@ -108,13 +138,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
     const onGame = (v: PlayerView) => {
       setView(v);
-      setResult(null);
+      setResult((cur) => {
+        // Al terminar la mano el servidor manda el estado final ANTES del resultado:
+        // no borres un overlay ya visible; sí al empezar una mano nueva (mesa vacía).
+        if (cur && v.board.length > 0) return cur;
+        return null;
+      });
       setScreen('game');
     };
-    const onHandResult = (p: { winnerTeam: 'A' | 'B' | string | null; points: number; isBlocked: boolean }) =>
-      setResult({ kind: 'hand', winnerTeam: p.winnerTeam, points: p.points, isBlocked: p.isBlocked });
-    const onMatchResult = (p: { winnerTeam: string; finalScores: unknown }) =>
-      setResult({ kind: 'match', winnerTeam: p.winnerTeam, finalScores: p.finalScores });
+    const onTurnTimer = (secs: number) => setTurnSeconds(secs);
+    const onHandResult = (p: { winnerKey: ScoreKey | null; winnerName: string | null; points: number; isBlocked: boolean; fullHands: Record<string, Tile[]>; scores: Record<ScoreKey, number> }) =>
+      setResult({ kind: 'hand', ...p });
+    const onMatchResult = (p: { winnerKey: ScoreKey; winnerName: string | null; finalScores: Record<ScoreKey, number> }) =>
+      setResult({ kind: 'match', winnerKey: p.winnerKey, winnerName: p.winnerName, scores: p.finalScores });
     const onEmote = (p: { playerId: string; emoteId: string }) => pushBubble(p.playerId, p.emoteId);
     const onChat = (p: { playerId: string; message: string }) => pushBubble(p.playerId, p.message);
     const onError = (msg: string) => {
@@ -126,28 +162,34 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onDisconnect);
     socket.on('identity', onIdentity);
+    socket.on('rejoinFailed', onRejoinFailed);
     socket.on('roomUpdate', onRoom);
     socket.on('gameUpdate', onGame);
+    socket.on('turnTimer', onTurnTimer);
     socket.on('handResult', onHandResult);
     socket.on('matchResult', onMatchResult);
     socket.on('emote', onEmote);
     socket.on('chat', onChat);
     socket.on('error', onError);
 
+    if (socket.connected) tryRejoin();
+
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('connect_error', onDisconnect);
       socket.off('identity', onIdentity);
+      socket.off('rejoinFailed', onRejoinFailed);
       socket.off('roomUpdate', onRoom);
       socket.off('gameUpdate', onGame);
+      socket.off('turnTimer', onTurnTimer);
       socket.off('handResult', onHandResult);
       socket.off('matchResult', onMatchResult);
       socket.off('emote', onEmote);
       socket.off('chat', onChat);
       socket.off('error', onError);
     };
-  }, [pushBubble]);
+  }, [pushBubble, saveSession, clearSession]);
 
   const updateNick = useCallback((n: string) => {
     nickRef.current = n;
@@ -168,14 +210,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const startGame = useCallback(() => getSocket().emit('startGame'), []);
   const playTile = useCallback((tile: Tile, end: 'left' | 'right') => getSocket().emit('playTile', { tile, end }), []);
   const pass = useCallback(() => getSocket().emit('pass'), []);
+  const drawTile = useCallback(() => getSocket().emit('drawTile'), []);
   const sendEmote = useCallback((emoteId: string) => getSocket().emit('sendEmote', emoteId), []);
   const sendChat = useCallback((message: string) => getSocket().emit('sendChat', message), []);
   const rematch = useCallback(() => { setResult(null); getSocket().emit('requestRematch'); }, []);
   const leaveRoom = useCallback(() => {
     getSocket().emit('leaveRoom');
+    clearSession();
     setRoom(null); setView(null); setResult(null); autoRef.current = false;
     setScreen('menu');
-  }, []);
+  }, [clearSession]);
 
   const nameOf = useCallback((playerId: string) => {
     const seat = roomRef.current?.seats.find((s) => s.playerId === playerId);
@@ -185,9 +229,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const isMyTurn = !!(view && myId && view.turn === myId);
 
   const value: GameCtx = {
-    connected, screen, nick, myId, code, room, view, result, bubbles, toast, error, isMyTurn,
+    connected, screen, nick, myId, code, room, view, result, bubbles, toast, error, isMyTurn, turnSeconds,
     nameOf, setNick: updateNick, goto, showToast,
-    createRoom, joinRoom, practiceVsAI, addBot, startGame, playTile, pass, sendEmote, sendChat, rematch, leaveRoom,
+    createRoom, joinRoom, practiceVsAI, addBot, startGame, playTile, pass, drawTile, sendEmote, sendChat, rematch, leaveRoom,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
